@@ -20,7 +20,7 @@ class ListAdapter(val context: Context, var list: List<List<Float>>) : BaseAdapt
 
         var view = convertView
 
-        var graphViewHolder: GraphViewHolder
+        val graphViewHolder: GraphViewHolder
 
         if ((view == null) || (view.tag as? GraphViewHolder == null)) {
             val layoutInf = LayoutInflater.from(context)

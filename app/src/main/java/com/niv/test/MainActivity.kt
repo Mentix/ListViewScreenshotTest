@@ -16,7 +16,11 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import android.os.StrictMode
+import android.util.Log
 import android.view.*
+import org.jetbrains.anko.alert
+import org.jetbrains.anko.cancelButton
+import org.jetbrains.anko.okButton
 
 
 class MainActivity : AppCompatActivity() {
@@ -27,7 +31,7 @@ class MainActivity : AppCompatActivity() {
 
         // generating some values to display on our graph
         val values: MutableList<List<Float>> = mutableListOf()
-        for (i in 0..4) values.add(listOf(0f ,10f, 20f, 30f, 40f , 50f, 60f, 70f, 80f))
+        for (i in 0..4) values.add(listOf(0f, 10f, 20f, 30f, 40f, 50f, 60f, 70f, 80f))
 
         val adapter = ListAdapter(this, values)
         listView.adapter = adapter
@@ -36,24 +40,24 @@ class MainActivity : AppCompatActivity() {
 
             val listBitmap = getWholeListViewItemsToBitmap(listView)
 
-            saveImageExternal(listBitmap){ uri ->
+            saveImageExternal(listBitmap) { uri ->
 
                 if (uri != null) {
                     val builder = StrictMode.VmPolicy.Builder()
                     StrictMode.setVmPolicy(builder.build())
 
-                    shareImageUri(uri!!)
+                    shareImageUri(uri)
                 }
             }
         }
     }
 
 
-    fun getWholeListViewItemsToBitmap(list: ListView): Bitmap {
+    private fun getWholeListViewItemsToBitmap(list: ListView): Bitmap {
 
         val adapter = list.adapter
 
-        val itemsCount = adapter.getCount()
+        val itemsCount = adapter.count
         var allItemsHeight = 0
 
         val bmps = ArrayList<Bitmap>()
@@ -63,11 +67,12 @@ class MainActivity : AppCompatActivity() {
             val childView = adapter.getView(i, null, list)
 
             childView.measure(
-                View.MeasureSpec.makeMeasureSpec(list.getWidth(), View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(list.width, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+
             )
 
-            childView.layout(0, 0, childView.getMeasuredWidth(), childView.getMeasuredHeight())
+            childView.layout(0, 0, childView.measuredWidth, childView.measuredHeight)
 
             childView.isDrawingCacheEnabled = true
             childView.buildDrawingCache()
@@ -76,24 +81,26 @@ class MainActivity : AppCompatActivity() {
 
             bmps.add(childView.drawingCache)
 
-            allItemsHeight += childView.getMeasuredHeight()
+            Log.v("Height", childView.measuredHeight.toString())
+            Log.v("Width", childView.width.toString())
+
+            allItemsHeight += childView.measuredHeight
         }
 
 
-        val bigBitmap = Bitmap.createBitmap(list.getMeasuredWidth(), allItemsHeight, Bitmap.Config.ARGB_8888)
+        val bigBitmap = Bitmap.createBitmap(list.measuredWidth, allItemsHeight, Bitmap.Config.ARGB_8888)
         val bigCanvas = Canvas(bigBitmap)
 
         val paint = Paint()
 
         var iHeight = 0f
         for (i in bmps.indices) {
-            var bmp: Bitmap? = bmps[i]
+            val bmp: Bitmap? = bmps[i]
 
             bigCanvas.drawBitmap(bmp, 0f, iHeight, paint)
             iHeight += bmp!!.height.toFloat()
 
             bmp.recycle()
-            bmp = null
         }
 
         return bigBitmap
@@ -105,19 +112,36 @@ class MainActivity : AppCompatActivity() {
      * @return Uri of the saved file or null
      */
     private fun saveImageExternal(image: Bitmap, callback: (Uri?) -> Unit) {
-        doAsync {
-            var uri: Uri? = null
-            try {
-                val file = File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "quickinfoshared.png")
-                val stream = FileOutputStream(file)
-                image.compress(Bitmap.CompressFormat.PNG, 90, stream)
-                stream.close()
-                uri = Uri.fromFile(file)
-            } catch (e: IOException) {
-                println("exception while saving image to external")
+
+        val scrollView = ScrollView(this)
+
+        val imageview = ImageView(this)
+        imageview.setImageBitmap(image)
+
+        scrollView.addView(imageview)
+
+        alert {
+            title = getString(R.string.share_q)
+            customView = scrollView
+            cancelButton { }
+            okButton {
+                doAsync {
+                    var uri: Uri? = null
+                    try {
+                        val file = File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "quickinfoshared.png")
+                        val stream = FileOutputStream(file)
+                        image.compress(Bitmap.CompressFormat.PNG, 90, stream)
+                        stream.close()
+                        uri = Uri.fromFile(file)
+                    } catch (e: IOException) {
+                        println("exception while saving image to external")
+                    }
+                    callback(uri)
+                }
             }
-            callback(uri)
-        }
+        }.show()
+
+
     }
 
     /**
